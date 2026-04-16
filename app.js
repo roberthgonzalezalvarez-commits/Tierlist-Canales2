@@ -2,12 +2,12 @@
 // FIREBASE CONFIG — REEMPLAZA CON TUS DATOS
 // ========================================
 const firebaseConfig = {
-  apiKey: "TU_API_KEY",
-  authDomain: "TU_PROYECTO.firebaseapp.com",
-  projectId: "TU_PROYECTO",
-  storageBucket: "TU_PROYECTO.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "1:123456789:web:abcdef123456"
+  apiKey: "AIzaSyAKH4fOfPYtREWpclB6bjVjTasIfhhbWTE",
+  authDomain: "tierlist-proyects.firebaseapp.com",
+  projectId: "tierlist-proyects",
+  storageBucket: "tierlist-proyects.firebasestorage.app",
+  messagingSenderId: "293664559604",
+  appId: "1:293664559604:web:c0f768a41844e17bdfe9a1"
 };
 
 // ========================================
