@@ -211,19 +211,48 @@
     <div class="modal modal-wide">
       <div class="modal-header">
         <h2 id="viewTierlistTitle">Tier List</h2>
-        <button class="icon-btn" id="closeViewModalBtn"><span class="material-symbols-rounded">close</span></button>
+        <div class="modal-header-actions">
+          <button class="icon-btn text-primary" id="downloadJpgBtn" title="Descargar como JPG">
+            <span class="material-symbols-rounded">download</span>
+          </button>
+          <button class="icon-btn text-danger" id="deletePublicationBtn" style="display:none" title="Eliminar publicación">
+            <span class="material-symbols-rounded">delete</span>
+          </button>
+          <button class="icon-btn" id="closeViewModalBtn"><span class="material-symbols-rounded">close</span></button>
+        </div>
       </div>
-      <div id="viewTierlistContent" class="view-tierlist-content"></div>
+      <div class="view-tierlist-layout">
+        <!-- Left: Tier list content -->
+        <div id="viewTierlistContent" class="view-tierlist-content"></div>
+
+        <!-- Right / Bottom: Comments section -->
+        <div class="comments-section">
+          <h3>Comentarios</h3>
+          <div class="comments-list" id="commentsList">
+            <!-- Comments go here -->
+          </div>
+          <form class="comment-form" id="commentForm">
+            <input type="text" id="commentInput" placeholder="Escribe un comentario..." required autocomplete="off">
+            <button type="submit" class="icon-btn text-primary">
+              <span class="material-symbols-rounded">send</span>
+            </button>
+          </form>
+        </div>
+      </div>
     </div>
   </div>
 
   <!-- Toast -->
   <div class="toast" id="toast"></div>
 
+  <!-- Offscreen Container for Exporting -->
+  <div id="exportContainer" style="position: absolute; left:-9999px; top:-9999px; width: 1000px; padding: 40px; background: var(--bg); pointer-events: none;"></div>
+
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-  <script src="app.js?v=2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="app.js?v=3"></script>
 </body>
 </html>

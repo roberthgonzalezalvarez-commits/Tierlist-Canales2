@@ -77,12 +77,20 @@ const viewTierlistModal = document.getElementById('viewTierlistModal');
 const closeViewModalBtn = document.getElementById('closeViewModalBtn');
 const viewTierlistTitle = document.getElementById('viewTierlistTitle');
 const viewTierlistContent = document.getElementById('viewTierlistContent');
+const deletePubBtn = document.getElementById('deletePublicationBtn');
+const downloadJpgBtn = document.getElementById('downloadJpgBtn');
+const exportContainer = document.getElementById('exportContainer');
+const commentsList = document.getElementById('commentsList');
+const commentForm = document.getElementById('commentForm');
+const commentInput = document.getElementById('commentInput');
 
 // ========================================
 // STATE
 // ========================================
 let channels = [];
 let currentUser = null; // { uid, email, displayName }
+let currentViewingPubId = null;
+let currentPublications = [];
 
 const DEFAULT_AVATAR = `data:image/svg+xml;base64,${btoa('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="50" fill="#e0e0e0"/><text x="50" y="58" text-anchor="middle" fill="#9aa0a6" font-family="sans-serif" font-size="36">?</text></svg>')}`;
 
@@ -534,7 +542,10 @@ publishBtn.addEventListener('click', async () => {
     // Local mode — store in localStorage
     let localCommunity = JSON.parse(localStorage.getItem('tierlist_community') || '[]');
     const existIdx = localCommunity.findIndex(p => p.userId === currentUser.uid && p.month === month);
+    if (!publication.id) publication.id = 'loc_' + Date.now().toString();
+    
     if (existIdx > -1) {
+      publication.id = localCommunity[existIdx].id; // keep id
       localCommunity[existIdx] = publication;
     } else {
       localCommunity.push(publication);
@@ -566,6 +577,7 @@ async function loadCommunity() {
     publications.reverse(); // newest first
   }
 
+  currentPublications = publications;
   renderCommunity(publications);
 }
 
@@ -635,7 +647,16 @@ function renderCommunity(publications) {
 
 // View a community tier list in modal
 function openViewTierlist(pub) {
+  currentViewingPubId = pub.id;
   viewTierlistTitle.textContent = `${pub.userName} — ${pub.month}`;
+  
+  // Conditionally show delete button
+  if (currentUser && currentUser.uid === pub.userId) {
+    deletePubBtn.style.display = 'flex';
+  } else {
+    deletePubBtn.style.display = 'none';
+  }
+
   let html = '';
 
   ['S', 'A', 'B', 'C', 'D'].forEach(tier => {
@@ -659,8 +680,194 @@ function openViewTierlist(pub) {
   });
 
   viewTierlistContent.innerHTML = html;
+  renderComments(pub.comments || []);
   viewTierlistModal.classList.add('active');
 }
+
+function renderComments(commentsArray) {
+  commentsList.innerHTML = '';
+  if (commentsArray.length === 0) {
+    commentsList.innerHTML = '<p style="color:var(--text-secondary); font-size: 0.8rem; text-align:center;">No hay comentarios aún. ¡Sé el primero!</p>';
+    return;
+  }
+  
+  commentsArray.forEach(c => {
+    const div = document.createElement('div');
+    div.className = 'comment-item';
+    const dateStr = typeof c.createdAt === 'string' ? new Date(c.createdAt).toLocaleDateString() : (c.createdAt?.toDate ? c.createdAt.toDate().toLocaleDateString() : '');
+    div.innerHTML = `
+      <span class="comment-author">${c.userName}</span>
+      <span class="comment-text">${c.text}</span>
+      <span class="comment-date">${dateStr}</span>
+    `;
+    commentsList.appendChild(div);
+  });
+  commentsList.scrollTop = commentsList.scrollHeight; // Auto-scroll to bottom
+}
+
+// Comments submission
+commentForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!currentUser) { showToast('Inicia sesión para comentar'); return; }
+  if (!currentViewingPubId) return;
+
+  const text = commentInput.value.trim();
+  if (!text) return;
+
+  const newComment = {
+    userId: currentUser.uid,
+    userName: currentUser.displayName,
+    text: text,
+    createdAt: new Date().toISOString()
+  };
+
+  // Optimistic UI update
+  const pubIdx = currentPublications.findIndex(p => p.id === currentViewingPubId);
+  if (pubIdx > -1) {
+    if (!currentPublications[pubIdx].comments) currentPublications[pubIdx].comments = [];
+    currentPublications[pubIdx].comments.push(newComment);
+    renderComments(currentPublications[pubIdx].comments);
+  }
+  commentInput.value = '';
+
+  // Firebase update
+  if (firebaseReady) {
+    try {
+      await db.collection('published_tierlists').doc(currentViewingPubId).update({
+        comments: firebase.firestore.FieldValue.arrayUnion(newComment)
+      });
+    } catch (err) {
+      console.error(err);
+      showToast('Error al enviar comentario');
+    }
+  } else {
+    // Local fallback
+    let localCommunity = JSON.parse(localStorage.getItem('tierlist_community') || '[]');
+    const lIdx = localCommunity.findIndex(p => p.id === currentViewingPubId);
+    if (lIdx > -1) {
+      if (!localCommunity[lIdx].comments) localCommunity[lIdx].comments = [];
+      localCommunity[lIdx].comments.push(newComment);
+      localStorage.setItem('tierlist_community', JSON.stringify(localCommunity));
+    }
+  }
+});
+
+// Delete Publication
+deletePubBtn.addEventListener('click', async () => {
+  if (!confirm('¿Estás seguro de eliminar permanentemente esta tier list de la comunidad?')) return;
+  if (!currentViewingPubId) return;
+
+  if (firebaseReady) {
+    try {
+      await db.collection('published_tierlists').doc(currentViewingPubId).delete();
+      viewTierlistModal.classList.remove('active');
+      showToast('Publicación eliminada');
+      loadCommunity();
+    } catch(e) {
+      showToast('Error al eliminar');
+    }
+  } else {
+    // Local fallback
+    let localCommunity = JSON.parse(localStorage.getItem('tierlist_community') || '[]');
+    localCommunity = localCommunity.filter(p => p.id !== currentViewingPubId);
+    localStorage.setItem('tierlist_community', JSON.stringify(localCommunity));
+    viewTierlistModal.classList.remove('active');
+    showToast('Publicación eliminada');
+    loadCommunity();
+  }
+});
+
+// Download JPG using html2canvas
+downloadJpgBtn.addEventListener('click', async () => {
+  if (!currentViewingPubId) return;
+  const pub = currentPublications.find(p => p.id === currentViewingPubId);
+  if (!pub) return;
+
+  const originalIcon = downloadJpgBtn.innerHTML;
+  downloadJpgBtn.innerHTML = '<span class="material-symbols-rounded">hourglass_empty</span>';
+  downloadJpgBtn.disabled = true;
+
+  try {
+    exportContainer.innerHTML = '';
+    
+    // Title
+    const title = document.createElement('h1');
+    title.style.cssText = 'text-align: center; margin-bottom: 24px; font-family: Inter, sans-serif; color: #202124; font-size: 2rem; font-weight: 700;';
+    title.textContent = `Tier List de ${pub.userName} — ${pub.month}`;
+    exportContainer.appendChild(title);
+
+    // Full List
+    const tierListSection = document.createElement('div');
+    tierListSection.className = 'tier-list';
+    
+    ['S', 'A', 'B', 'C', 'D'].forEach(tier => {
+      const items = pub.tiers[tier] || [];
+      const row = document.createElement('div');
+      row.className = 'tier-row';
+      row.style.minHeight = '110px';
+      
+      const label = document.createElement('div');
+      label.className = `tier-label tier-${tier.toLowerCase()}`;
+      label.textContent = tier;
+      
+      const zone = document.createElement('div');
+      zone.className = `tier-dropzone`;
+      zone.style.display = 'flex';
+      zone.style.gap = '10px';
+      zone.style.padding = '10px';
+      zone.style.flexWrap = 'wrap';
+      zone.style.background = 'var(--surface)';
+      
+      items.forEach(data => {
+        const card = document.createElement('div');
+        card.className = 'channel-card';
+        card.style.background = 'var(--surface)';
+        card.style.border = '1px solid var(--border)';
+        card.style.width = '110px';
+        const img = data.foto || DEFAULT_AVATAR;
+        card.innerHTML = `
+          <img src="${img}" alt="${data.nombre}" class="channel-avatar" style="width:50px; height:50px; flex-shrink:0;" onerror="this.src='${DEFAULT_AVATAR}'">
+          <div class="channel-info" style="margin-top: 4px;">
+            <span class="channel-name" style="font-size: 0.8rem;" title="${data.nombre}">${data.nombre}</span>
+            ${data.nicho ? `<span class="channel-niche" style="font-size:0.7rem;">${data.nicho}</span>` : ''}
+          </div>
+          ${data.subs ? `<span class="channel-subs" style="justify-content:center; margin-top:2px; font-size:0.7rem;"><span class="material-symbols-rounded" style="font-size:14px">group</span>${data.subs}</span>` : ''}
+        `;
+        zone.appendChild(card);
+      });
+      
+      row.appendChild(label);
+      row.appendChild(zone);
+      tierListSection.appendChild(row);
+    });
+    
+    exportContainer.appendChild(tierListSection);
+
+    // Wait minimal time for images to apply
+    await new Promise(r => setTimeout(r, 100));
+
+    // Capture offscreen
+    const canvas = await html2canvas(exportContainer, {
+      backgroundColor: '#f8f9fa',
+      scale: 2, // High quality
+      useCORS: true
+    });
+
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = `TierList_${pub.userName}_${pub.month}.jpg`;
+    a.click();
+    showToast('Imagen descargada con éxito');
+  } catch (e) {
+    console.error('Error html2canvas', e);
+    showToast('Hubo un error al generar la imagen');
+  } finally {
+    downloadJpgBtn.innerHTML = originalIcon;
+    downloadJpgBtn.disabled = false;
+    exportContainer.innerHTML = ''; // Clean up
+  }
+});
 
 closeViewModalBtn.addEventListener('click', () => viewTierlistModal.classList.remove('active'));
 viewTierlistModal.addEventListener('click', (e) => {
