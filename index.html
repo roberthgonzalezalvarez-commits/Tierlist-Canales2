@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tier List — Canales</title>
+  <title>NeuroFlow</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -12,11 +12,24 @@
 </head>
 <body>
 
+  <!-- ===== SPLASH SCREEN ===== -->
+  <div class="splash-screen" id="splashScreen">
+    <div class="splash-content">
+      <div class="splash-icon">
+        <span class="material-symbols-rounded">neurology</span>
+      </div>
+      <h1 class="splash-title">Neuro<span>Flow</span></h1>
+      <div class="splash-loader">
+        <div class="splash-loader-bar"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== AUTH SCREEN ===== -->
   <div class="auth-screen" id="authScreen">
     <div class="auth-card">
-      <h1 class="auth-logo">Tier List</h1>
-      <p class="auth-subtitle">Crea y comparte tus rankings de canales</p>
+      <h1 class="auth-logo">NeuroFlow</h1>
+      <p class="auth-subtitle">Organiza, conecta y comparte con tu comunidad</p>
 
       <div class="auth-tabs">
         <button class="auth-tab active" data-tab="login">Iniciar sesión</button>
@@ -63,20 +76,35 @@
     <!-- Top Bar -->
     <header class="top-bar">
       <div class="top-bar-left">
-        <h1>Tier List</h1>
+        <h1>NeuroFlow</h1>
         <nav class="nav-tabs">
           <button class="nav-tab active" data-view="tierlist">
             <span class="material-symbols-rounded">format_list_numbered</span>
             Mi Tier List
           </button>
+          <button class="nav-tab" data-view="projects">
+            <span class="material-symbols-rounded">work</span>
+            Proyectos
+          </button>
           <button class="nav-tab" data-view="community">
             <span class="material-symbols-rounded">groups</span>
             Comunidad
+          </button>
+          <button class="nav-tab" data-view="friends">
+            <span class="material-symbols-rounded">person_add</span>
+            Amigos
+          </button>
+          <button class="nav-tab" data-view="tools">
+            <span class="material-symbols-rounded">build</span>
+            Herramientas
           </button>
         </nav>
       </div>
       <div class="top-bar-right">
         <span class="user-name" id="userName"></span>
+        <button id="profileBtn" class="profile-avatar-btn" title="Mi Perfil">
+          <span class="profile-avatar-initial" id="profileAvatarInitial">?</span>
+        </button>
         <button id="logoutBtn" class="icon-btn" title="Cerrar sesión">
           <span class="material-symbols-rounded">logout</span>
         </button>
@@ -147,9 +175,15 @@
 
     <!-- ===== VIEW: COMMUNITY ===== -->
     <div class="view" id="viewCommunity" style="display:none">
-      <div class="community-header">
-        <h2>Comunidad</h2>
-        <p>Tier lists publicadas por otros usuarios</p>
+      <div class="community-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+          <h2>Comunidad</h2>
+          <p>Tier lists y publicaciones de usuarios</p>
+        </div>
+        <button id="addPostBtn" class="btn-primary" title="Nueva Publicación">
+          <span class="material-symbols-rounded">edit_square</span>
+          Publicar
+        </button>
       </div>
       <div class="community-grid" id="communityGrid">
         <div class="community-empty" id="communityEmpty">
@@ -158,6 +192,238 @@
           <small>Sé el primero en publicar la tuya</small>
         </div>
       </div>
+    </div>
+
+    <!-- ===== VIEW: PROJECTS ===== -->
+    <div class="view" id="viewProjects" style="display:none">
+      <div class="community-header">
+        <h2>Proyectos de la Semana</h2>
+        <p>Envía archivos, fotos o enlaces a otros creadores</p>
+      </div>
+      
+      <div class="projects-layout">
+        <div class="projects-form-container">
+          <form id="projectMessageForm" class="project-form">
+            <div class="field">
+              <label for="projectRecipient">Destinatario</label>
+              <select id="projectRecipient" required>
+                <option value="" disabled selected>Cargando usuarios...</option>
+              </select>
+            </div>
+            
+            <div class="field">
+              <label>Archivo o Foto (Máx 2MB)</label>
+              <div class="upload-area" id="projectFileArea">
+                <div class="upload-preview" id="projectFilePreview" style="display:none; align-items:center; justify-content:center; gap:8px;">
+                  <span class="material-symbols-rounded" id="projectFileIcon" style="font-size: 2rem;">insert_drive_file</span>
+                  <span id="projectFileName" style="max-width:120px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></span>
+                  <button type="button" class="remove-photo" id="removeProjectFileBtn"><span class="material-symbols-rounded">close</span></button>
+                </div>
+                <div class="upload-prompt" id="projectFilePrompt">
+                  <span class="material-symbols-rounded">upload_file</span>
+                  <span>Seleccionar archivo</span>
+                </div>
+                <input type="file" id="projectFileInput" style="display:none">
+                <input type="hidden" id="projectFileBase64">
+                <input type="hidden" id="projectFileType">
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="projectText">Mensaje</label>
+              <textarea id="projectText" placeholder="Escribe los detalles o un mensaje..." required style="height: 80px; resize: none;"></textarea>
+            </div>
+            
+            <div class="field">
+              <label for="projectLink">Enlace (Opcional)</label>
+              <input type="url" id="projectLink" placeholder="https://...">
+            </div>
+
+            <button type="submit" class="btn-primary btn-full">
+              <span class="material-symbols-rounded">send</span> 
+              Enviar a creador
+            </button>
+          </form>
+        </div>
+        
+        <div class="projects-list-container">
+          <h3>Archivos Recientes</h3>
+          <div id="projectsList" class="projects-list">
+            <div class="community-empty">
+              <span class="material-symbols-rounded">work_history</span>
+              <p>No hay mensajes recientes</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== VIEW: FRIENDS ===== -->
+    <div class="view" id="viewFriends" style="display:none">
+      <div class="community-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+        <div>
+          <h2>Amigos</h2>
+          <p>Conecta con otros creadores</p>
+        </div>
+      </div>
+
+      <!-- Search & Add -->
+      <div class="friends-search-container">
+        <div class="friends-search-box">
+          <span class="material-symbols-rounded">search</span>
+          <input type="text" id="friendSearchInput" placeholder="Buscar por nombre o email..." autocomplete="off">
+        </div>
+        <div id="friendSearchResults" class="friend-search-results"></div>
+      </div>
+
+      <!-- Friend Requests -->
+      <div class="friends-section" id="friendRequestsSection" style="display:none">
+        <h3><span class="material-symbols-rounded">mark_email_unread</span> Solicitudes Pendientes</h3>
+        <div id="friendRequestsList" class="friends-list"></div>
+      </div>
+
+      <!-- My Friends -->
+      <div class="friends-section">
+        <h3><span class="material-symbols-rounded">people</span> Mis Amigos</h3>
+        <div id="friendsList" class="friends-list">
+          <div class="community-empty">
+            <span class="material-symbols-rounded">person_add</span>
+            <p>Aún no tienes amigos</p>
+            <small>Busca y agrega personas para empezar</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== VIEW: TOOLS ===== -->
+    <div class="view" id="viewTools" style="display:none">
+      <div class="community-header">
+        <h2>Herramientas</h2>
+        <p>Tus herramientas integradas dentro de NeuroFlow</p>
+      </div>
+
+      <div class="tools-grid">
+        <!-- Pexels Downloader -->
+        <div class="tool-card" onclick="openTool('pexels')">
+          <div class="tool-card-icon tool-icon-teal">
+            <span class="material-symbols-rounded">download</span>
+          </div>
+          <div class="tool-card-info">
+            <h3>Clip Downloader</h3>
+            <p>Busca y descarga videos y fotos de Pexels y Pixabay en alta calidad</p>
+          </div>
+          <div class="tool-card-arrow">
+            <span class="material-symbols-rounded">arrow_forward</span>
+          </div>
+        </div>
+
+        <!-- Workflow Builder -->
+        <div class="tool-card" onclick="openTool('workflow')">
+          <div class="tool-card-badge-wrap">
+            <div class="tool-card-icon tool-icon-indigo">
+              <span class="material-symbols-rounded">account_tree</span>
+            </div>
+            <span class="tool-dev-badge">En desarrollo</span>
+          </div>
+          <div class="tool-card-info">
+            <h3>Flujo de Trabajo</h3>
+            <p>Constructor visual de flujos con IA, scraping y generación de contenido</p>
+            <div class="tool-dev-notice">
+              <span class="material-symbols-rounded" style="font-size:14px">warning</span>
+              Esta herramienta aún no está completa y puede contener errores
+            </div>
+          </div>
+          <div class="tool-card-arrow">
+            <span class="material-symbols-rounded">arrow_forward</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TOOL IFRAME OVERLAY ===== -->
+  <div class="tool-overlay" id="toolOverlay">
+    <div class="tool-overlay-header">
+      <button class="tool-back-btn" onclick="closeTool()">
+        <span class="material-symbols-rounded">arrow_back</span>
+        Volver a NeuroFlow
+      </button>
+      <span class="tool-overlay-title" id="toolOverlayTitle"></span>
+    </div>
+    <iframe id="toolIframe" class="tool-iframe" src="" frameborder="0"></iframe>
+  </div>
+
+  <!-- ===== MODAL: Profile ===== -->
+  <div class="modal-overlay" id="profileModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Mi Perfil</h2>
+        <button class="icon-btn" id="closeProfileModalBtn"><span class="material-symbols-rounded">close</span></button>
+      </div>
+      <form id="profileForm">
+        <div class="profile-photo-section">
+          <div class="profile-photo-wrapper" id="profilePhotoWrapper">
+            <img id="profilePhotoPreview" alt="Foto de perfil" class="profile-photo-img">
+            <div class="profile-photo-overlay">
+              <span class="material-symbols-rounded">photo_camera</span>
+            </div>
+          </div>
+          <input type="file" id="profilePhotoFile" accept="image/png,image/jpeg,image/webp" style="display:none">
+          <input type="hidden" id="profilePhotoBase64">
+          <button type="button" class="btn-text" id="removeProfilePhotoBtn" style="display:none">
+            <span class="material-symbols-rounded" style="font-size:16px">delete</span> Quitar foto
+          </button>
+        </div>
+        <div class="field">
+          <label for="profileName">Nombre de usuario</label>
+          <input type="text" id="profileName" required placeholder="Tu nombre">
+        </div>
+        <div class="field">
+          <label for="profileBio">Biografía</label>
+          <textarea id="profileBio" placeholder="Escribe algo sobre ti..." style="height: 80px; resize: none;"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="submit" class="btn-primary">Guardar Perfil</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: Create Post ===== -->
+  <div class="modal-overlay" id="postModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Nueva Publicación</h2>
+        <button class="icon-btn" id="closePostModalBtn"><span class="material-symbols-rounded">close</span></button>
+      </div>
+      <form id="postForm">
+        <div class="field">
+          <label>¿Qué estás pensando?</label>
+          <textarea id="postText" required placeholder="Escribe un mensaje a la comunidad..." style="height: 100px; resize: none;"></textarea>
+        </div>
+        <div class="field">
+          <label>Enlace (Opcional)</label>
+          <input type="url" id="postLink" placeholder="https://...">
+        </div>
+        <div class="field">
+          <label>Imagen (Opcional, máx 2MB)</label>
+          <div class="upload-area" id="postPhotoArea">
+            <div class="upload-preview" id="postPhotoPreviewContainer" style="display:none">
+              <img id="postPhotoPreview" alt="Preview">
+              <button type="button" class="remove-photo" id="removePostPhotoBtn"><span class="material-symbols-rounded">close</span></button>
+            </div>
+            <div class="upload-prompt" id="postPhotoPrompt">
+              <span class="material-symbols-rounded">add_photo_alternate</span>
+              <span>Subir imagen</span>
+            </div>
+            <input type="file" id="postPhotoFile" accept="image/png,image/jpeg,image/webp" style="display:none">
+            <input type="hidden" id="postFotoBase64">
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="submit" class="btn-primary">Publicar en Comunidad</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -253,6 +519,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="app.js?v=3"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>
