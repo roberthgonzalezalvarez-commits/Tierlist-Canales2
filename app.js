@@ -494,6 +494,8 @@ window.openEditModal = (id) => {
   canalNombreInput.value = ch.nombre;
   canalNichoInput.value = ch.nicho || '';
   canalSubsInput.value = ch.subs || '';
+  const urlField = document.getElementById('canalUrl');
+  if (urlField) urlField.value = ch.url || '';
   if (ch.foto) {
     canalFotoInput.value = ch.foto;
     photoPreview.src = ch.foto;
@@ -607,12 +609,14 @@ if (fetchUrlBtn && canalUrlInput) {
 channelForm.addEventListener('submit', (e) => {
   e.preventDefault();
   const id = canalIdInput.value;
+  const urlField = document.getElementById('canalUrl');
   const data = {
     foto: canalFotoInput.value.trim(),
     nombre: canalNombreInput.value.trim(),
     nicho: canalNichoInput.value.trim(),
     subs: canalSubsInput.value.trim(),
     month: monthSelect.value,
+    url: urlField ? urlField.value.trim() : '',
   };
   if (id) {
     const idx = channels.findIndex(c => c.id == id);
@@ -694,7 +698,8 @@ publishBtn.addEventListener('click', async () => {
       nombre: c.nombre,
       nicho: c.nicho || '',
       subs: c.subs || '',
-      foto: c.foto ? (c.foto.length > 200000 ? '' : c.foto) : ''
+      foto: c.foto ? (c.foto.length > 200000 ? '' : c.foto) : '',
+      url: c.url || ''
     }));
   });
 
@@ -709,18 +714,9 @@ publishBtn.addEventListener('click', async () => {
 
   if (firebaseReady) {
     try {
-      // Check if user already published for this month — update or create
-      const existing = await db.collection('published_tierlists')
-        .where('userId', '==', currentUser.uid)
-        .where('month', '==', month)
-        .get();
-
-      if (!existing.empty) {
-        await existing.docs[0].ref.update({ ...publication, publishedAt: firebase.firestore.FieldValue.serverTimestamp() });
-      } else {
-        publication.publishedAt = firebase.firestore.FieldValue.serverTimestamp();
-        await db.collection('published_tierlists').add(publication);
-      }
+      // Always create a new publication — never overwrite previous ones
+      publication.publishedAt = firebase.firestore.FieldValue.serverTimestamp();
+      await db.collection('published_tierlists').add(publication);
       showToast('¡Publicado en la comunidad!');
       loadCommunity();
     } catch (err) {
@@ -728,21 +724,28 @@ publishBtn.addEventListener('click', async () => {
       showToast('Error al publicar');
     }
   } else {
-    // Local mode — store in localStorage
+    // Local mode — always add a new entry
     let localCommunity = JSON.parse(localStorage.getItem('tierlist_community') || '[]');
-    const existIdx = localCommunity.findIndex(p => p.userId === currentUser.uid && p.month === month);
     if (!publication.id) publication.id = 'loc_' + Date.now().toString();
-    
-    if (existIdx > -1) {
-      publication.id = localCommunity[existIdx].id; // keep id
-      localCommunity[existIdx] = publication;
-    } else {
-      localCommunity.push(publication);
-    }
+    localCommunity.push(publication);
     localStorage.setItem('tierlist_community', JSON.stringify(localCommunity));
     showToast('¡Publicado en la comunidad!');
     loadCommunity();
   }
+
+  // Ask user if they want to reset and start a new tier list
+  setTimeout(() => {
+    if (confirm('¡Publicado! ¿Quieres empezar una nueva Tier List para este mes? (La anterior ya está guardada en la comunidad)')) {
+      // Remove only ranked channels for this month (keep unranked as pool)
+      const month = monthSelect.value;
+      channels = channels.filter(c => !(c.month === month && c.tier !== 'unranked'));
+      // Reset unranked channels back to unranked
+      channels.forEach(c => { if (c.month === month) c.tier = 'unranked'; });
+      saveChannels();
+      renderChannels();
+      showToast('Tier list limpiada. ¡Crea una nueva!');
+    }
+  }, 500);
 });
 
 // ========================================
@@ -906,14 +909,17 @@ function openViewTierlist(pub) {
 
     const itemsHtml = items.map(ch => {
       const src = ch.foto || DEFAULT_AVATAR;
+      const hasUrl = ch.url && ch.url.trim().length > 0;
+      const clickAction = hasUrl ? `onclick="window.open('${ch.url.replace(/'/g, "\\'").replace(/"/g, '&quot;')}', '_blank')" style="background:var(--surface); border:1px solid var(--border); width:110px; cursor:pointer; transition: transform 0.15s ease, box-shadow 0.15s ease;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'; this.style.borderColor='var(--primary)';" onmouseout="this.style.transform=''; this.style.boxShadow=''; this.style.borderColor='var(--border)';"` : `style="background:var(--surface); border:1px solid var(--border); width:110px;"`;
       return `
-        <div class="channel-card" style="background:var(--surface); border:1px solid var(--border); width:110px;">
+        <div class="channel-card" ${clickAction}>
           <img src="${src}" alt="${ch.nombre}" class="channel-avatar" style="width:50px; height:50px; flex-shrink:0;" onerror="this.src='${DEFAULT_AVATAR}'">
           <div class="channel-info" style="margin-top: 4px;">
             <span class="channel-name" style="font-size: 0.8rem;" title="${ch.nombre}">${ch.nombre}</span>
             ${ch.nicho ? `<span class="channel-niche" style="font-size:0.7rem;">${ch.nicho}</span>` : ''}
           </div>
           ${ch.subs ? `<span class="channel-subs" style="justify-content:center; margin-top:2px; font-size:0.7rem;"><span class="material-symbols-rounded" style="font-size:14px">group</span>${ch.subs}</span>` : ''}
+          ${hasUrl ? `<a href="${ch.url}" target="_blank" onclick="event.stopPropagation()" style="display:flex; align-items:center; justify-content:center; gap:2px; font-size:0.65rem; color:var(--primary); text-decoration:none; margin-top:4px; padding:2px 6px; background:var(--primary-light); border-radius:6px; font-weight:500;"><span class="material-symbols-rounded" style="font-size:12px">open_in_new</span>Canal</a>` : ''}
         </div>`;
     }).join('');
 
