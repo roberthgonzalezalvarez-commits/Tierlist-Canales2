@@ -478,6 +478,10 @@
           <input type="text" id="canalNombre" required placeholder="Ej. ElXokas">
         </div>
         <div class="field">
+          <label for="canalUrl">Link del canal (Opcional)</label>
+          <input type="url" id="canalUrl" placeholder="Ej. https://youtube.com/@elxokas" pattern="https?://.*">
+        </div>
+        <div class="field">
           <label for="canalNicho">Nicho</label>
           <input type="text" id="canalNicho" placeholder="Gaming, Tech...">
         </div>
@@ -541,5 +545,61 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="app.js?v=999"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const urlInput = document.getElementById('canalUrl');
+    const nameInput = document.getElementById('canalNombre');
+    const photoInput = document.getElementById('canalFoto');
+    const photoPreviewContainer = document.getElementById('photoPreviewContainer');
+    const photoPreview = document.getElementById('photoPreview');
+    const photoPrompt = document.getElementById('photoUploadPrompt');
+
+    if(!urlInput) return;
+
+    let fetchTimeout = null;
+    urlInput.addEventListener('input', (e) => {
+        clearTimeout(fetchTimeout);
+        const url = e.target.value.trim();
+        if(!url.startsWith('http')) return;
+        
+        fetchTimeout = setTimeout(async () => {
+            try {
+                nameInput.placeholder = "Buscando datos mágicamente...";
+                const api = 'https://api.codetabs.com/v1/proxy?quest=';
+                const res = await fetch(api + encodeURIComponent(url));
+                const htmlText = await res.text();
+                const doc = new DOMParser().parseFromString(htmlText, 'text/html');
+                
+                const title = doc.querySelector('meta[property="og:title"]')?.content || doc.title;
+                const image = doc.querySelector('meta[property="og:image"]')?.content;
+                const desc = doc.querySelector('meta[name="description"]')?.content || doc.querySelector('meta[property="og:description"]')?.content || "";
+
+                if (title && (!nameInput.value || nameInput.value.trim() === '')) nameInput.value = title.replace(" - YouTube", "");
+                else if (!title && !nameInput.value) nameInput.placeholder = "Sin nombre automático";
+
+                if (image && (!photoInput.value || photoInput.value.trim() === '')) {
+                    photoInput.value = image;
+                    if (photoPreview) {
+                        photoPreview.src = image;
+                        if(photoPreviewContainer) photoPreviewContainer.style.display = 'flex';
+                        if(photoPrompt) photoPrompt.style.display = 'none';
+                    }
+                }
+
+                const subsInput = document.getElementById('canalSubs');
+                if (subsInput && (!subsInput.value || subsInput.value.trim() === '') && desc) {
+                    const subsMatch = desc.match(/([\d\.,]+)\s*(M|K|millones|mil|m|k|M de)?\s*(subscribers|suscriptores)/i);
+                    if (subsMatch) {
+                        subsInput.value = subsMatch[1] + (subsMatch[2] ? subsMatch[2].charAt(0).toUpperCase() : '');
+                    }
+                }
+            } catch(err) {
+                console.error("Error al obtener información:", err);
+                nameInput.placeholder = "Error al buscar. Ingresa manual.";
+            }
+        }, 800);
+    });
+});
+</script>
 </body>
 </html>

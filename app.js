@@ -112,6 +112,7 @@ const deleteChannelBtn = document.getElementById('deleteChannelBtn');
 const canalIdInput = document.getElementById('canalId');
 const canalFotoInput = document.getElementById('canalFoto');
 const canalNombreInput = document.getElementById('canalNombre');
+const canalUrlInput = document.getElementById('canalUrl');
 const canalNichoInput = document.getElementById('canalNicho');
 const canalSubsInput = document.getElementById('canalSubs');
 
@@ -439,7 +440,7 @@ function createCard(data) {
     </button>
     <img src="${img}" alt="${data.nombre}" class="channel-avatar" onerror="this.src='${DEFAULT_AVATAR}'">
     <div class="channel-info">
-      <span class="channel-name" title="${data.nombre}">${data.nombre}</span>
+      ${data.url ? `<a href="${data.url}" target="_blank" class="channel-name" style="text-decoration:none; color:inherit; cursor:pointer;" title="Ir a ${data.nombre}">${data.nombre}</a>` : `<span class="channel-name" title="${data.nombre}">${data.nombre}</span>`}
       ${data.nicho ? `<span class="channel-niche">${data.nicho}</span>` : ''}
     </div>
     ${data.subs ? `<span class="channel-subs"><span class="material-symbols-rounded">group</span>${data.subs}</span>` : ''}
@@ -494,6 +495,7 @@ window.openEditModal = (id) => {
   if (!ch) return;
   canalIdInput.value = ch.id;
   canalNombreInput.value = ch.nombre;
+  canalUrlInput.value = ch.url || '';
   canalNichoInput.value = ch.nicho || '';
   canalSubsInput.value = ch.subs || '';
   if (ch.foto) {
@@ -513,6 +515,7 @@ channelForm.addEventListener('submit', (e) => {
   const data = {
     foto: canalFotoInput.value.trim(),
     nombre: canalNombreInput.value.trim(),
+    url: canalUrlInput.value.trim(),
     nicho: canalNichoInput.value.trim(),
     subs: canalSubsInput.value.trim(),
     month: monthSelect.value,
