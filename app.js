@@ -517,26 +517,66 @@ if (fetchUrlBtn && canalUrlInput) {
     fetchUrlBtn.disabled = true;
     
     try {
-      // Usamos un proxy diferente que devuelve el HTML crudo y es menos propenso a bloqueos
-      const proxyUrl = `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`;
-      const res = await fetch(proxyUrl);
-      const htmlText = await res.text();
-      if (!htmlText) throw new Error('No content');
+      // Lista de proxies CORS para intentar en orden
+      const proxies = [
+        (u) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`,
+        (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+        (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`
+      ];
       
+      let htmlText = '';
+      for (const proxy of proxies) {
+        try {
+          const res = await fetch(proxy(url), { signal: AbortSignal.timeout(8000) });
+          if (res.ok) {
+            htmlText = await res.text();
+            if (htmlText && htmlText.length > 500) break;
+          }
+        } catch(proxyErr) {
+          console.warn('Proxy falló, intentando siguiente...', proxyErr);
+        }
+      }
+      
+      if (!htmlText || htmlText.length < 500) throw new Error('No content from any proxy');
+      
+      let name = '';
+      let photo = '';
+      
+      // Método 1: DOMParser con meta tags
       const parser = new DOMParser();
       const doc = parser.parseFromString(htmlText, 'text/html');
       
       const titleMeta = doc.querySelector('meta[property="og:title"]');
       const imageMeta = doc.querySelector('meta[property="og:image"]');
-      const descMeta = doc.querySelector('meta[name="description"]');
       
-      let name = titleMeta ? titleMeta.getAttribute('content') : '';
-      let photo = imageMeta ? imageMeta.getAttribute('content') : '';
+      if (titleMeta) name = titleMeta.getAttribute('content') || '';
+      if (imageMeta) photo = imageMeta.getAttribute('content') || '';
       
+      // Método 2: Regex fallback si DOMParser no encontró nada
+      if (!name) {
+        const titleMatch = htmlText.match(/property="og:title"\s+content="([^"]+)"/);
+        if (titleMatch) name = titleMatch[1];
+      }
+      if (!name) {
+        const titleMatch2 = htmlText.match(/<title>([^<]+)<\/title>/);
+        if (titleMatch2) name = titleMatch2[1];
+      }
+      if (!photo) {
+        const imgMatch = htmlText.match(/property="og:image"\s+content="([^"]+)"/);
+        if (imgMatch) photo = imgMatch[1];
+      }
+      if (!photo) {
+        const imgMatch2 = htmlText.match(/rel="image_src"\s+href="([^"]+)"/);
+        if (imgMatch2) photo = imgMatch2[1];
+      }
+      
+      // Limpiar nombre
       if (name) {
-        name = name.replace(' - YouTube', '').trim();
+        name = name.replace(/\s*[-–]\s*YouTube\s*$/i, '').trim();
         canalNombreInput.value = name;
       }
+      
+      // Poner foto
       if (photo) {
         canalFotoInput.value = photo;
         photoPreview.src = photo;
@@ -544,13 +584,19 @@ if (fetchUrlBtn && canalUrlInput) {
         photoUploadPrompt.style.display = 'none';
       }
       
-      // Intentar adivinar nicho por la descripcion
-      canalNichoInput.value = canalNichoInput.value || 'Creador de Contenido';
+      // Nicho por defecto
+      if (!canalNichoInput.value) {
+        canalNichoInput.value = 'Creador de Contenido';
+      }
       
-      showToast('Información obtenida');
+      if (name || photo) {
+        showToast('✅ Info obtenida' + (name ? ': ' + name : ''));
+      } else {
+        showToast('No se encontró info en esa URL');
+      }
     } catch (e) {
       console.error(e);
-      showToast('No se pudo extraer la info');
+      showToast('No se pudo extraer la info. Revisa la URL.');
     } finally {
       fetchUrlBtn.innerHTML = originalIcon;
       fetchUrlBtn.disabled = false;

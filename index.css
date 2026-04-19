@@ -1641,3 +1641,9 @@ select:focus { border-color: var(--primary); }
   .tool-card { padding: 16px; }
   .tool-overlay-header { padding: 8px 12px; }
 }
+
+/* Spin animation for loading */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
